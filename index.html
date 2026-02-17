@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StaffPlan — Планировщик занятости</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0f172a;
+    --navy2: #1e293b;
+    --slate: #475569;
+    --muted: #94a3b8;
+    --border: #e2e8f0;
+    --bg: #f1f5f9;
+    --white: #ffffff;
+    --blue: #3b82f6;
+    --blue-light: #eff6ff;
+    --work-bg: #dcfce7; --work-c: #16a34a;
+    --vac-bg:  #dbeafe; --vac-c:  #2563eb;
+    --sick-bg: #fee2e2; --sick-c: #dc2626;
+    --biz-bg:  #ffedd5; --biz-c:  #ea580c;
+    --rem-bg:  #ede9fe; --rem-c:  #7c3aed;
+    --radius: 12px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--navy); min-height: 100vh; }
+
+  /* ── LOGIN ── */
+  #loginScreen {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0f172a 100%);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .login-card {
+    background: #fff; border-radius: 20px; padding: 40px 36px;
+    width: 100%; max-width: 420px;
+    box-shadow: 0 30px 90px rgba(0,0,0,0.5);
+    animation: slideUp .4s ease;
+  }
+  .login-logo { text-align: center; margin-bottom: 32px; }
+  .login-logo .icon { font-size: 48px; display: block; margin-bottom: 10px; }
+  .login-logo h1 { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--navy); }
+  .login-logo p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--slate); margin-bottom: 6px; }
+  .field select, .field input {
+    width: 100%; padding: 11px 14px; border: 2px solid var(--border);
+    border-radius: 10px; font-size: 15px; font-family: inherit;
+    outline: none; transition: border-color .2s;
+  }
+  .field select:focus, .field input:focus { border-color: var(--blue); }
+  .btn-login {
+    width: 100%; padding: 13px; background: var(--navy); color: #fff;
+    border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: background .2s; margin-top: 4px;
+  }
+  .btn-login:hover { background: #1e3a5f; }
+  .login-error { background: #fee2e2; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; text-align: center; }
+  .login-hint { text-align: center; font-size: 12px; color: var(--muted); margin-top: 18px; line-height: 1.7; }
+
+  /* ── LAYOUT ── */
+  #appScreen { display: none; }
+  .app { display: flex; min-height: 100vh; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 230px; background: var(--navy); display: flex; flex-direction: column;
+    padding: 22px 14px; flex-shrink: 0; gap: 6px;
+  }
+  .sb-logo { display: flex; align-items: center; gap: 10px; padding: 0 6px 22px; border-bottom: 1px solid #1e293b; }
+  .sb-logo span { font-size: 26px; }
+  .sb-logo b { font-family: 'Playfair Display', serif; color: #fff; font-size: 20px; }
+  .sb-user { display: flex; align-items: center; gap: 10px; padding: 14px 6px; border-bottom: 1px solid #1e293b; margin-bottom: 8px; }
+  .sb-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--blue); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+  .sb-name { color: #f1f5f9; font-size: 13px; font-weight: 600; }
+  .sb-role { color: var(--muted); font-size: 11px; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 10px; padding: 10px 10px;
+    border: none; background: transparent; color: var(--muted); border-radius: 9px;
+    cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; width: 100%; transition: all .15s;
+  }
+  .nav-btn:hover { background: #1e293b; color: #e2e8f0; }
+  .nav-btn.active { background: #1e293b; color: #60a5fa; }
+  .nav-btn .ni { font-size: 18px; }
+  .sb-legend { padding: 14px 6px; border-top: 1px solid #1e293b; margin-top: auto; }
+  .sb-legend-title { color: #475569; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .leg-item { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .btn-logout { background: transparent; border: 1px solid #1e293b; color: var(--muted); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 12px; font-family: inherit; margin-top: 8px; transition: all .15s; }
+  .btn-logout:hover { border-color: #475569; color: #e2e8f0; }
+
+  /* ── MAIN ── */
+  .main { flex: 1; padding: 26px 30px; overflow: auto; min-width: 0; }
+  .main-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
+  .page-title { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--navy); }
+  .page-date { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .filter-row { display: flex; align-items: center; gap: 8px; }
+  .filter-row label { font-size: 13px; color: var(--slate); }
+  .filter-row select { padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; background: #fff; cursor: pointer; }
+
+  /* ── CARD ── */
+  .card { background: #fff; border-radius: var(--radius); padding: 22px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); margin-bottom: 18px; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 10px 14px; text-align: left; background: #f8fafc; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; border-bottom: 2px solid var(--border); }
+  td { padding: 13px 14px; border-bottom: 1px solid #f1f5f9; font-size: 14px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .emp-cell { display: flex; align-items: center; gap: 10px; }
+  .mini-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .rec-cell { display: flex; align-items: flex-start; gap: 8px; }
+  .rec-cell .icon { font-size: 18px; }
+  .rec-status { font-weight: 600; font-size: 13px; }
+  .rec-note { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 11px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid; }
+  .empty-cell { color: #cbd5e1; font-size: 13px; }
+  .action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn-sm { padding: 5px 11px; border: 1px solid var(--border); border-radius: 7px; background: #f8fafc; cursor: pointer; font-size: 12px; color: var(--slate); font-family: inherit; white-space: nowrap; transition: all .15s; }
+  .btn-sm:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn-view { background: #f0fdf4; border-color: #bbf7d0; color: #16a34a; }
+  .btn-view:hover { background: #16a34a; color: #fff; border-color: #16a34a; }
+
+  /* ── CALENDAR ── */
+  .cal-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .view-tabs { display: flex; gap: 4px; }
+  .vtab { padding: 7px 16px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; color: var(--slate); cursor: pointer; font-size: 13px; font-family: inherit; transition: all .15s; }
+  .vtab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .nav-month { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .arrow-btn { padding: 7px 14px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; cursor: pointer; font-size: 20px; line-height: 1; font-family: inherit; transition: all .15s; }
+  .arrow-btn:hover { background: var(--navy); color: #fff; }
+  .month-label { font-weight: 700; font-size: 16px; min-width: 160px; text-align: center; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-day-label { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); padding: 6px 0; text-transform: uppercase; }
+  .cal-cell {
+    min-height: 88px; border: 1px solid #f1f5f9; border-radius: 9px; padding: 6px;
+    background: #fafafa; cursor: default; transition: all .15s;
+  }
+  .cal-cell.today { border: 2px solid var(--blue); background: var(--blue-light); }
+  .cal-cell.other-month { opacity: .4; }
+  .cal-day-num { font-size: 13px; font-weight: 600; color: var(--slate); margin-bottom: 3px; }
+  .cal-cell.today .cal-day-num { color: var(--blue); }
+  .cal-event { font-size: 11px; padding: 2px 5px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .cal-event:hover { filter: brightness(.93); }
+  .cal-more { font-size: 10px; color: var(--muted); }
+  /* Week table */
+  .week-wrap { overflow-x: auto; }
+  .week-table th { text-align: center; }
+  .week-table td { text-align: center; cursor: pointer; transition: background .15s; }
+  .week-table td:hover { background: #f0f9ff; }
+  .week-day-icon { font-size: 20px; }
+  .week-day-text { font-size: 10px; font-weight: 600; }
+  /* Day grid */
+  .day-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .day-card { padding: 16px; border-radius: 12px; border: 1px solid; }
+  .day-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .day-card-name { font-weight: 700; font-size: 14px; }
+  .day-card-dept { font-size: 11px; color: var(--muted); }
+  .day-card-status { display: flex; align-items: center; gap: 6px; }
+  .day-card-status .big-icon { font-size: 22px; }
+  .day-card-label { font-weight: 600; font-size: 13px; }
+  .day-card-note { font-size: 12px; color: var(--slate); margin-top: 4px; }
+  .btn-add-day { margin-top: 10px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 7px; background: #f8fafc; cursor: pointer; font-size: 12px; color: var(--slate); font-family: inherit; }
+  .btn-add-day:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* ── ADMIN ── */
+  .admin-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+  .atab { padding: 8px 18px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; color: var(--slate); cursor: pointer; font-size: 13px; font-family: inherit; transition: all .15s; }
+  .atab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .add-user-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; margin-bottom: 20px; }
+  .form-field label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--slate); margin-bottom: 5px; }
+  .form-field input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 14px; font-family: inherit; outline: none; transition: border-color .2s; }
+  .form-field input:focus { border-color: var(--blue); }
+  .btn-primary { padding: 9px 18px; background: var(--blue); color: #fff; border: none; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; transition: background .15s; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-danger { padding: 6px 13px; border: 1px solid #fecaca; border-radius: 7px; background: #fff5f5; color: #dc2626; cursor: pointer; font-size: 12px; font-family: inherit; transition: all .15s; }
+  .btn-danger:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
+  .admin-badge { background: #fef3c7; color: #d97706; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+  .mono { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--slate); }
+
+  /* ── MODAL ── */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.65); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+  .overlay.open { display: flex; animation: fadeIn .2s ease; }
+  .modal { background: #fff; border-radius: 18px; padding: 28px; width: 100%; max-width: 500px; box-shadow: 0 24px 70px rgba(0,0,0,0.3); animation: slideUp .25s ease; }
+  .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
+  .modal-title { font-family: 'Playfair Display', serif; font-size: 19px; color: var(--navy); }
+  .modal-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .btn-close { background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--muted); padding: 0 4px; line-height: 1; }
+  .modal-field { margin-bottom: 16px; }
+  .modal-field label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--slate); margin-bottom: 6px; }
+  .modal-field input, .modal-field textarea, .modal-field select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 14px; font-family: inherit; outline: none; transition: border-color .2s; resize: vertical; }
+  .modal-field input:focus, .modal-field textarea:focus, .modal-field select:focus { border-color: var(--blue); }
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .status-opt { display: flex; align-items: center; gap: 8px; padding: 10px 13px; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; transition: all .15s; user-select: none; }
+  .status-opt:hover { border-color: #94a3b8; }
+  .status-opt.sel { border-color: currentColor; }
+  .status-opt .s-icon { font-size: 18px; }
+  .status-opt .s-label { font-weight: 600; font-size: 13px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  .btn-secondary { padding: 9px 18px; border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; color: var(--slate); cursor: pointer; font-size: 14px; font-family: inherit; }
+
+  /* ── TOAST ── */
+  .toast { position: fixed; top: 20px; right: 20px; padding: 12px 22px; border-radius: 10px; color: #fff; font-weight: 600; font-size: 14px; z-index: 9999; box-shadow: 0 6px 24px rgba(0,0,0,0.25); display: none; animation: slideIn .3s ease; }
+  .toast.show { display: block; }
+  .toast.success { background: #16a34a; }
+  .toast.error { background: #dc2626; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ── STATUS COLORS ── */
+  .s-work   { color: var(--work-c); background: var(--work-bg); }
+  .s-vacation { color: var(--vac-c); background: var(--vac-bg); }
+  .s-sick   { color: var(--sick-c); background: var(--sick-bg); }
+  .s-business { color: var(--biz-c); background: var(--biz-bg); }
+  .s-remote { color: var(--rem-c); background: var(--rem-bg); }
+  .row-work { background: #f0fdf4; }
+  .row-vacation { background: #eff6ff; }
+  .row-sick { background: #fff5f5; }
+  .row-business { background: #fff7ed; }
+  .row-remote { background: #f5f3ff; }
+
+  @media(max-width:768px){
+    .sidebar { display: none; }
+    .main { padding: 16px; }
+    .add-user-form { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="icon">📋</span>
+      <h1>StaffPlan</h1>
+      <p>Планировщик занятости сотрудников</p>
+    </div>
+    <div id="loginError" class="login-error" style="display:none"></div>
+    <div class="field">
+      <label>Выберите пользователя</label>
+      <select id="loginSelect"></select>
+    </div>
+    <div class="field">
+      <label>Пароль</label>
+      <input type="password" id="loginPwd" placeholder="Введите пароль" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Войти →</button>
+    <div class="login-hint">
+      Demo: все сотрудники — пароль <b>1234</b><br>
+      Администратор — <b>admin</b> / <b>admin123</b>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sb-logo"><span>📋</span><b>StaffPlan</b></div>
+      <div class="sb-user">
+        <div class="sb-avatar" id="sbAvatar">И</div>
+        <div>
+          <div class="sb-name" id="sbName">Иванов</div>
+          <div class="sb-role" id="sbRole">Разработка</div>
+        </div>
+      </div>
+      <button class="nav-btn active" id="navTable" onclick="switchView('table')">
+        <span class="ni">📊</span> Таблица
+      </button>
+      <button class="nav-btn" id="navCal" onclick="switchView('calendar')">
+        <span class="ni">📅</span> Календарь
+      </button>
+      <button class="nav-btn" id="navAdmin" onclick="switchView('admin')" style="display:none">
+        <span class="ni">⚙️</span> Управление
+      </button>
+      <div class="sb-legend">
+        <div class="sb-legend-title">Статусы</div>
+        <div class="leg-item"><span class="leg-dot" style="background:var(--work-c)"></span>Работа</div>
+        <div class="leg-item"><span class="leg-dot" style="background:var(--vac-c)"></span>Отпуск</div>
+        <div class="leg-item"><span class="leg-dot" style="background:var(--sick-c)"></span>Больничный</div>
+        <div class="leg-item"><span class="leg-dot" style="background:var(--biz-c)"></span>Командировка</div>
+        <div class="leg-item"><span class="leg-dot" style="background:var(--rem-c)"></span>Удалённо</div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">← Выйти</button>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <div class="main-header">
+        <div>
+          <div class="page-title" id="pageTitle">Таблица занятости</div>
+          <div class="page-date" id="pageDate"></div>
+        </div>
+        <div class="filter-row" id="filterRow">
+          <label>Сотрудник:</label>
+          <select id="empFilter" onchange="renderCurrent()">
+            <option value="all">Все</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Table View -->
+      <div id="viewTable"></div>
+      <!-- Calendar View -->
+      <div id="viewCalendar" style="display:none"></div>
+      <!-- Admin View -->
+      <div id="viewAdmin" style="display:none"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle">Запись</div>
+        <div class="modal-sub" id="modalSub"></div>
+      </div>
+      <button class="btn-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-field">
+      <label>Дата</label>
+      <input type="date" id="modalDate">
+    </div>
+    <div class="modal-field">
+      <label>Статус</label>
+      <div class="status-grid" id="statusGrid"></div>
+    </div>
+    <div class="modal-field">
+      <label>Заметка / описание задачи</label>
+      <textarea id="modalNote" rows="3" placeholder="Что делаете, над чем работаете..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-danger" id="modalDeleteBtn" onclick="modalDelete()" style="display:none;margin-right:auto">Удалить</button>
+      <button class="btn-secondary" onclick="closeModalDirect()">Закрыть</button>
+      <button class="btn-primary" id="modalSaveBtn" onclick="modalSave()">💾 Сохранить</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+const STATUS = {
+  work:     { label:'Работа',       icon:'💼', c:'var(--work-c)',  bg:'var(--work-bg)',  row:'row-work' },
+  vacation: { label:'Отпуск',       icon:'🏖️', c:'var(--vac-c)',   bg:'var(--vac-bg)',   row:'row-vacation' },
+  sick:     { label:'Больничный',   icon:'🏥', c:'var(--sick-c)',  bg:'var(--sick-bg)',  row:'row-sick' },
+  business: { label:'Командировка', icon:'✈️', c:'var(--biz-c)',   bg:'var(--biz-bg)',   row:'row-business' },
+  remote:   { label:'Удалённо',     icon:'🏠', c:'var(--rem-c)',   bg:'var(--rem-bg)',   row:'row-remote' },
+};
+
+let users = [
+  { id:'admin', name:'Администратор', role:'admin',     password:'admin123', dept:'Управление' },
+  { id:'u1',  name:'Иванов А.А.',    role:'employee',  password:'1234',     dept:'Разработка' },
+  { id:'u2',  name:'Петров Б.Б.',    role:'employee',  password:'1234',     dept:'Разработка' },
+  { id:'u3',  name:'Сидорова В.В.',  role:'employee',  password:'1234',     dept:'Маркетинг'  },
+  { id:'u4',  name:'Кузнецов Г.Г.', role:'employee',  password:'1234',     dept:'Продажи'    },
+  { id:'u5',  name:'Морозова Д.Д.', role:'employee',  password:'1234',     dept:'HR'          },
+];
+
+
+let records = {};
+let currentUser = null;
+let currentView = 'table';
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let calViewMode = 'month'; 
+let modalCtx = null; 
+
+
+const today = () => new Date().toISOString().slice(0,10);
+const tomorrow = () => { const d=new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); };
+const fmtDate = s => { const [y,m,d]=s.split('-'); return `${d}.${m}.${y}`; };
+const getRecord = (uid,date) => records[`${uid}_${date}`] || null;
+const setRecord = (uid,date,data) => { records[`${uid}_${date}`]=data; };
+const delRecord = (uid,date) => { delete records[`${uid}_${date}`]; };
+const canEdit = uid => currentUser && (currentUser.role==='admin' || currentUser.id===uid);
+const employees = () => users.filter(u=>u.role==='employee');
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const DSHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(()=>t.className='toast',2500);
+}
+
+function avatarColor(name) {
+  const colors = ['#3b82f6','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#6366f1'];
+  let h=0; for(let c of name) h=(h*31+c.charCodeAt(0))%colors.length;
+  return colors[h];
+}
+
+
+function initLogin() {
+  const sel = document.getElementById('loginSelect');
+  sel.innerHTML = '<option value="">— Выберите пользователя —</option>';
+  users.forEach(u => {
+    const o = document.createElement('option');
+    o.value = u.id;
+    o.textContent = u.name + (u.role==='admin'?' (Админ)':'');
+    sel.appendChild(o);
+  });
+}
+
+function doLogin() {
+  const id = document.getElementById('loginSelect').value;
+  const pwd = document.getElementById('loginPwd').value;
+  const user = users.find(u=>u.id===id && u.password===pwd);
+  if(!user) {
+    const err = document.getElementById('loginError');
+    err.textContent = 'Неверный логин или пароль';
+    err.style.display = 'block';
+    return;
+  }
+  currentUser = user;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  initApp();
+}
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginPwd').value = '';
+  document.getElementById('loginError').style.display = 'none';
+  switchView('table');
+}
+
+
+function initApp() {
+  document.getElementById('sbName').textContent = currentUser.name;
+  document.getElementById('sbRole').textContent = currentUser.role==='admin' ? 'Администратор' : currentUser.dept;
+  const av = document.getElementById('sbAvatar');
+  av.textContent = currentUser.name[0];
+  av.style.background = avatarColor(currentUser.name);
+  document.getElementById('navAdmin').style.display = currentUser.role==='admin' ? 'flex' : 'none';
+  document.getElementById('pageDate').textContent = new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  rebuildFilter();
+  switchView('table');
+}
+
+function rebuildFilter() {
+  const sel = document.getElementById('empFilter');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="all">Все</option>';
+  employees().forEach(u => {
+    const o = document.createElement('option');
+    o.value = u.id; o.textContent = u.name;
+    sel.appendChild(o);
+  });
+  if([...sel.options].find(o=>o.value===prev)) sel.value=prev;
+}
+
+function getVisible() {
+  const f = document.getElementById('empFilter').value;
+  return f==='all' ? employees() : employees().filter(u=>u.id===f);
+}
+
+function switchView(v) {
+  currentView = v;
+  ['table','calendar','admin'].forEach(n=>{
+    document.getElementById('view'+n.charAt(0).toUpperCase()+n.slice(1)).style.display = n===v?'block':'none';
+  });
+  ['Table','Cal','Admin'].forEach(n=>{
+    document.getElementById('nav'+n)?.classList.toggle('active', 'table'===v&&n==='Table'||'calendar'===v&&n==='Cal'||'admin'===v&&n==='Admin');
+  });
+  const titles = {table:'Таблица занятости',calendar:'Календарь',admin:'Управление'};
+  document.getElementById('pageTitle').textContent = titles[v];
+  document.getElementById('filterRow').style.display = v==='admin' ? 'none' : 'flex';
+  renderCurrent();
+}
+
+function renderCurrent() {
+  if(currentView==='table') renderTable();
+  else if(currentView==='calendar') renderCalendar();
+  else renderAdmin();
+}
+
+
+function renderTable() {
+  const vis = getVisible();
+  const td = today(), tm = tomorrow();
+  let html = `<div class="card"><table>
+    <thead><tr>
+      <th>Сотрудник</th><th>Отдел</th>
+      <th>Сегодня (${fmtDate(td)})</th>
+      <th>Завтра (${fmtDate(tm)})</th>
+      <th>Статус</th><th>Действия</th>
+    </tr></thead><tbody>`;
+  vis.forEach(u => {
+    const rt = getRecord(u.id, td);
+    const rm = getRecord(u.id, tm);
+    const st = rt ? STATUS[rt.status] : null;
+    const rowCls = st ? st.row : '';
+    html += `<tr class="${rowCls}">
+      <td><div class="emp-cell">
+        <div class="mini-avatar" style="background:${avatarColor(u.name)}">${u.name[0]}</div>
+        <b>${u.name}</b>
+      </div></td>
+      <td style="color:var(--muted);font-size:13px">${u.dept}</td>
+      <td>${recCell(rt)}</td>
+      <td>${recCell(rm)}</td>
+      <td>${st ? `<span class="badge" style="background:${st.bg};color:${st.c};border-color:${st.c}">${st.icon} ${st.label}</span>` : '<span class="empty-cell">—</span>'}</td>
+      <td><div class="action-btns">${actionBtns(u, td, tm)}</div></td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('viewTable').innerHTML = html;
+}
+
+function recCell(r) {
+  if(!r) return '<span class="empty-cell">— не заполнено —</span>';
+  const s = STATUS[r.status];
+  return `<div class="rec-cell"><span class="icon">${s.icon}</span><div>
+    <div class="rec-status" style="color:${s.c}">${s.label}</div>
+    ${r.note ? `<div class="rec-note">${r.note}</div>` : ''}
+  </div></div>`;
+}
+
+function actionBtns(u, td, tm) {
+  if(canEdit(u.id)) {
+    return `<button class="btn-sm" onclick="openModal('${u.id}','${td}',true)">✏️ Сегодня</button>
+            <button class="btn-sm" onclick="openModal('${u.id}','${tm}',true)">✏️ Завтра</button>`;
+  }
+  return `<button class="btn-sm btn-view" onclick="openModal('${u.id}','${td}',false)">👁 Просмотр</button>`;
+}
+
+
+function renderCalendar() {
+  let html = `<div class="card">
+    <div class="cal-controls">
+      <div class="view-tabs">
+        <button class="vtab ${calViewMode==='month'?'active':''}" onclick="setCalView('month')">Месяц</button>
+        <button class="vtab ${calViewMode==='week'?'active':''}" onclick="setCalView('week')">Неделя</button>
+        <button class="vtab ${calViewMode==='day'?'active':''}" onclick="setCalView('day')">День</button>
+      </div>
+      ${calViewMode==='month' ? `
+      <div class="nav-month" style="margin-left:auto">
+        <button class="arrow-btn" onclick="calNav(-1)">‹</button>
+        <span class="month-label">${MONTHS[calMonth]} ${calYear}</span>
+        <button class="arrow-btn" onclick="calNav(1)">›</button>
+      </div>` : ''}
+    </div>`;
+
+  if(calViewMode==='month') html += renderMonthGrid();
+  else if(calViewMode==='week') html += renderWeekGrid();
+  else html += renderDayGrid();
+
+  html += '</div>';
+  document.getElementById('viewCalendar').innerHTML = html;
+}
+
+function renderMonthGrid() {
+  const vis = getVisible();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  let firstDay = new Date(calYear, calMonth, 1).getDay();
+  if(firstDay===0) firstDay=7;
+  const td = today();
+  let html = '<div class="cal-grid">';
+  DSHORT.slice(1).concat(DSHORT[0]).forEach(d=>{ html+=`<div class="cal-day-label">${d}</div>`; });
+  for(let i=1;i<firstDay;i++) html+='<div></div>';
+  for(let d=1;d<=daysInMonth;d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr===td;
+    const recs = vis.map(u=>({u,r:getRecord(u.id,dateStr)})).filter(x=>x.r);
+    html += `<div class="cal-cell ${isToday?'today':''}">
+      <div class="cal-day-num">${d}</div>`;
+    recs.slice(0,3).forEach(({u,r})=>{
+      const s=STATUS[r.status];
+      const ed=canEdit(u.id);
+      html+=`<div class="cal-event" style="background:${s.bg};color:${s.c}"
+        onclick="${ed?`openModal('${u.id}','${dateStr}',true)`:`openModal('${u.id}','${dateStr}',false)`}"
+        title="${u.name}: ${s.label}${r.note?' — '+r.note:''}">${s.icon} ${u.name.split(' ')[0]}</div>`;
+    });
+    if(recs.length>3) html+=`<div class="cal-more">+${recs.length-3} ещё</div>`;
+    html+='</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function getWeekDays() {
+  const d=new Date(); const day=d.getDay();
+  const mon=new Date(d); mon.setDate(d.getDate()-(day===0?6:day-1));
+  return Array.from({length:7},(_,i)=>{ const dd=new Date(mon); dd.setDate(mon.getDate()+i); return dd.toISOString().slice(0,10); });
+}
+
+function renderWeekGrid() {
+  const vis = getVisible(); const wd=getWeekDays(); const td=today();
+  let html='<div class="week-wrap"><table class="week-table"><thead><tr><th style="width:140px;text-align:left">Сотрудник</th>';
+  wd.forEach(d=>{ const [,m,day]=d.split('-');
+    html+=`<th style="${d===td?'background:var(--blue-light)':''}">
+      <div style="font-size:11px;color:var(--muted)">${DSHORT[new Date(d).getDay()]}</div>
+      <div style="font-weight:700;color:${d===td?'var(--blue)':'var(--navy)'}">${parseInt(day)}.${m}</div></th>`;
+  });
+  html+='</tr></thead><tbody>';
+  vis.forEach(u=>{
+    html+=`<tr><td><div class="emp-cell"><div class="mini-avatar" style="background:${avatarColor(u.name)};width:28px;height:28px;font-size:11px">${u.name[0]}</div><span style="font-size:13px;font-weight:600">${u.name}</span></div></td>`;
+    wd.forEach(d=>{
+      const r=getRecord(u.id,d); const s=r?STATUS[r.status]:null; const ed=canEdit(u.id);
+      html+=`<td style="${s?'background:'+s.bg+';':''}" onclick="${ed?`openModal('${u.id}','${d}',true)`:''}">`;
+      if(s) html+=`<div class="week-day-icon">${s.icon}</div><div class="week-day-text" style="color:${s.c}">${s.label}</div>`;
+      else if(ed) html+='<span style="color:#cbd5e1;font-size:22px">+</span>';
+      else html+='<span style="color:#e2e8f0">—</span>';
+      html+='</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function renderDayGrid() {
+  const vis=getVisible(); const td=today();
+  const weekday=new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+  let html=`<h3 style="margin:0 0 16px;color:var(--navy);font-family:'Playfair Display',serif">${weekday}</h3><div class="day-grid">`;
+  vis.forEach(u=>{
+    const r=getRecord(u.id,td); const s=r?STATUS[r.status]:null; const ed=canEdit(u.id);
+    html+=`<div class="day-card" style="background:${s?s.bg:'#f8fafc'};border-color:${s?s.c+'40':'var(--border)'}">
+      <div class="day-card-head">
+        <div class="mini-avatar" style="background:${avatarColor(u.name)};width:36px;height:36px;font-size:14px">${u.name[0]}</div>
+        <div><div class="day-card-name">${u.name}</div><div class="day-card-dept">${u.dept}</div></div>
+      </div>`;
+    if(s){
+      html+=`<div class="day-card-status"><span class="big-icon">${s.icon}</span>
+        <span class="day-card-label" style="color:${s.c}">${s.label}</span></div>`;
+      if(r.note) html+=`<div class="day-card-note">${r.note}</div>`;
+    } else {
+      html+=`<div style="color:var(--muted);font-size:13px">Статус не указан</div>`;
+    }
+    if(ed) html+=`<button class="btn-add-day" onclick="openModal('${u.id}','${td}',true)">${r?'Изменить':'Добавить'}</button>`;
+    html+='</div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function setCalView(v) { calViewMode=v; renderCalendar(); }
+function calNav(d) {
+  calMonth+=d;
+  if(calMonth<0){calMonth=11;calYear--;} if(calMonth>11){calMonth=0;calYear++;}
+  renderCalendar();
+}
+
+
+let adminTab = 'users';
+function renderAdmin() {
+  let html=`<div class="admin-tabs">
+    <button class="atab ${adminTab==='users'?'active':''}" onclick="setAdminTab('users')">👥 Сотрудники</button>
+    <button class="atab ${adminTab==='records'?'active':''}" onclick="setAdminTab('records')">📝 Все записи</button>
+  </div>`;
+  if(adminTab==='users') html+=renderAdminUsers();
+  else html+=renderAdminRecords();
+  document.getElementById('viewAdmin').innerHTML=html;
+}
+function setAdminTab(t){adminTab=t;renderAdmin();}
+
+function renderAdminUsers(){
+  let html=`<div class="card" style="margin-bottom:16px">
+    <h3 style="margin:0 0 16px;font-size:15px;color:var(--navy)">➕ Добавить сотрудника</h3>
+    <div class="add-user-form">
+      <div class="form-field"><label>ФИО</label><input id="newName" placeholder="Иванов А.А."></div>
+      <div class="form-field"><label>Отдел</label><input id="newDept" placeholder="Разработка"></div>
+      <div class="form-field"><label>Пароль</label><input id="newPwd" placeholder="1234"></div>
+      <button class="btn-primary" onclick="addUser()">Добавить</button>
+    </div>
+  </div>
+  <div class="card"><table>
+    <thead><tr><th>Логин</th><th>ФИО</th><th>Отдел</th><th>Пароль</th><th>Статус сегодня</th><th>Действия</th></tr></thead>
+    <tbody>`;
+  users.forEach(u=>{
+    const r=getRecord(u.id,today()); const s=r?STATUS[r.status]:null;
+    html+=`<tr>
+      <td class="mono">${u.id}</td>
+      <td><b>${u.name}</b>${u.role==='admin'?' <span class="admin-badge">Админ</span>':''}</td>
+      <td style="color:var(--muted);font-size:13px">${u.dept}</td>
+      <td class="mono">${u.password}</td>
+      <td>${s?`<span class="badge" style="background:${s.bg};color:${s.c};border-color:${s.c}">${s.icon} ${s.label}</span>`:'<span style="color:#cbd5e1">—</span>'}</td>
+      <td>${u.role!=='admin'?`<button class="btn-danger" onclick="removeUser('${u.id}')">Удалить</button>`:'—'}</td>
+    </tr>`;
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function renderAdminRecords(){
+  const keys=Object.keys(records);
+  let html=`<div class="card"><table>
+    <thead><tr><th>Сотрудник</th><th>Дата</th><th>Статус</th><th>Заметка</th><th>Действия</th></tr></thead>
+    <tbody>`;
+  if(!keys.length) html+=`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:32px">Записей нет</td></tr>`;
+  keys.forEach(k=>{
+    const [uid,date]=k.split('_'); const u=users.find(x=>x.id===uid); const r=records[k]; const s=STATUS[r.status];
+    if(!u||!s) return;
+    html+=`<tr>
+      <td><b>${u.name}</b></td>
+      <td>${fmtDate(date)}</td>
+      <td><span class="badge" style="background:${s.bg};color:${s.c};border-color:${s.c}">${s.icon} ${s.label}</span></td>
+      <td style="color:var(--muted);font-size:13px">${r.note||'—'}</td>
+      <td><button class="btn-danger" onclick="adminDelRecord('${uid}','${date}')">Удалить</button></td>
+    </tr>`;
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function addUser(){
+  const name=document.getElementById('newName').value.trim();
+  const dept=document.getElementById('newDept').value.trim()||'—';
+  const pwd=document.getElementById('newPwd').value.trim()||'1234';
+  if(!name){showToast('Введите ФИО','error');return;}
+  const id='u'+Date.now();
+  users.push({id,name,role:'employee',password:pwd,dept});
+  showToast('Сотрудник добавлен');
+  rebuildFilter(); renderAdmin();
+}
+function removeUser(id){
+  users=users.filter(u=>u.id!==id);
+  Object.keys(records).filter(k=>k.startsWith(id+'_')).forEach(k=>delete records[k]);
+  showToast('Сотрудник удалён'); rebuildFilter(); renderAdmin();
+}
+function adminDelRecord(uid,date){
+  delRecord(uid,date); showToast('Запись удалена'); renderAdmin();
+}
+
+
+function openModal(uid, date, editable) {
+  const u=users.find(x=>x.id===uid);
+  const r=getRecord(uid,date);
+  modalCtx={uid, date, editable};
+
+  document.getElementById('modalTitle').textContent = editable ? (r?'Редактировать':'Добавить запись') : 'Просмотр записи';
+  document.getElementById('modalSub').textContent = `${u.name} · ${fmtDate(date)}`;
+  document.getElementById('modalDate').value = date;
+  document.getElementById('modalDate').disabled = !editable;
+  document.getElementById('modalNote').value = r?.note||'';
+  document.getElementById('modalNote').disabled = !editable;
+  document.getElementById('modalSaveBtn').style.display = editable?'':'none';
+  document.getElementById('modalDeleteBtn').style.display = (editable&&r)?'':'none';
+
+  
+  let selStatus = r?.status||'work';
+  let sgHtml='';
+  Object.entries(STATUS).forEach(([k,s])=>{
+    sgHtml+=`<div class="status-opt ${selStatus===k?'sel':''}" style="color:${s.c};background:${selStatus===k?s.bg:''}"
+      onclick="${editable?`selectStatus('${k}')`:''}">
+      <span class="s-icon">${s.icon}</span>
+      <span class="s-label">${s.label}</span>
+    </div>`;
+  });
+  document.getElementById('statusGrid').innerHTML=sgHtml;
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function selectStatus(k){
+  const s=STATUS[k];
+  document.querySelectorAll('.status-opt').forEach(el=>{
+    const isK = el.querySelector('.s-label').textContent === s.label;
+    el.classList.toggle('sel',isK);
+    el.style.background=isK?s.bg:'';
+  });
+  modalCtx.selStatus=k;
+}
+
+function getSelectedStatus(){
+  const sel=document.querySelector('.status-opt.sel .s-label');
+  if(sel){ const found=Object.entries(STATUS).find(([,v])=>v.label===sel.textContent); return found?found[0]:'work'; }
+  return modalCtx.selStatus||'work';
+}
+
+function modalSave(){
+  const date=document.getElementById('modalDate').value||modalCtx.date;
+  const note=document.getElementById('modalNote').value.trim();
+  const status=getSelectedStatus();
+  setRecord(modalCtx.uid, date, {status,note});
+  showToast('Запись сохранена');
+  closeModalDirect();
+  renderCurrent();
+}
+function modalDelete(){
+  delRecord(modalCtx.uid, modalCtx.date);
+  showToast('Запись удалена');
+  closeModalDirect();
+  renderCurrent();
+}
+function closeModal(e){ if(e.target.id==='modal') closeModalDirect(); }
+function closeModalDirect(){ document.getElementById('modal').classList.remove('open'); modalCtx=null; }
+
+initLogin();
+document.getElementById('pageDate').textContent = new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+</script>
+</body>
+</html>
